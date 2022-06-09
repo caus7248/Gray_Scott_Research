@@ -1,5 +1,3 @@
-% This is a cool stamp, other than our circular-square shape
-
 % _________________inline functions for the construction_________________ %
 rr   = @(theta, a, k)  (1+a*cos(k*theta))/(1+a);
 UU   = @(R,b,c) exp(-36*(R/b).^c);
