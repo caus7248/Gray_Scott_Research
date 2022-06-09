@@ -47,7 +47,7 @@ end
 % _________________________default configurations________________________ %
 % a   = 0.2;  k   = 5;  b   = 1;      c   = 100;  d   = 2;  % thick star
 % a   = 0.5;  k   = 5;  b   = 1;      c   = 100;  d   = 2;  % thin star
-% a   = 0.2;  k   = 20; b   = 1;      c   = 100;  d   = 2;  % thic gear
+% a   = 0.2;  k   = 20; b   = 1;      c   = 100;  d   = 2;  % thick gear
 % a   = 0.5;  k   = 20; b   = 1;      c   = 100;  d   = 2;  % thin gear
 % a   = 0;    k   = 1;  b   = 0.2;    c   = 100;  d   = 2;  % small circle
 % a   = 0;    k   = 1;  b   = 0.7;    c   = 100;  d   = 2;  % large circle
