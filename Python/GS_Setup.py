@@ -5,6 +5,8 @@
 @author: mcausley
 """
 
+from re import U
+from matplotlib.pyplot import switch_backend
 import numpy as np
 from PIL import Image
 
@@ -16,22 +18,89 @@ __all__ = [
     "Im_Plot",
 ]
 
-def intial_condition(num_points):
-    u =np.ones((num_points,num_points))
-    v =np.zeros((num_points,num_points))
-    bot = int(num_points*0.65)
-    top = int(num_points*0.75)
-    lft = int(num_points*0.65)
-    rgt = int(num_points*0.75)
-    u[bot:top, lft:rgt] += 0.1
-    v[bot:top, lft:rgt] += 0.5
-    bot = int(num_points*0.25)
-    top = int(num_points*0.35)
-    lft = int(num_points*0.25)
-    rgt = int(num_points*0.35)
-    u[bot:top, lft:rgt] += 0.1
-    v[bot:top, lft:rgt] += 0.5
-    return u, v
+def intial_condition(num_points, ic_no, x_no, y_no, size_no, shape_no = 1, sharpness = 10):
+    def one() : 
+        u = np.ones((num_points, num_points))
+        v = np.zeros((num_points, num_points))
+        bot = int(num_points*(.5 + size_no * 1.5))
+        top = int(num_points*(.5 + size_no * 2.5))
+        lft = int(num_points*(.5 + size_no * 1.5))
+        rgt = int(num_points*(.5 + size_no * 2.5))
+        if(bot < 0) : 
+            bot = 0
+        if(top > 256) : 
+            top = 256
+        if(lft < 0) : 
+            lft = 0
+        if(rgt > 256) : 
+            rgt = 256
+        u[bot:top, lft:rgt] += 0.1
+        v[bot:top, lft:rgt] += 0.5
+        bot = int(num_points*(.5 - size_no * 2.5))
+        top = int(num_points*(.5 - size_no * 1.5))
+        lft = int(num_points*(.5 - size_no * 2.5))
+        rgt = int(num_points*(.5 - size_no * 1.5))
+        if(bot < 0) : 
+            bot = 0
+        if(top > 256) : 
+            top = 256
+        if(lft < 0) : 
+            lft = 0
+        if(rgt > 256) : 
+            rgt = 256
+        u[bot:top, lft:rgt] += 0.1
+        v[bot:top, lft:rgt] += 0.5
+        u = np.roll(u, (int((x_no - .5) * num_points), int((y_no - .5) * num_points)), axis=(0, 1))
+        v = np.roll(v, (int((x_no - .5) * num_points), int((y_no - .5) * num_points)), axis=(0, 1))
+        return u, v
+
+    def two() : 
+        u = np.ones((num_points, num_points))
+        v = np.zeros((num_points, num_points))
+        bot = int(num_points*(.5 - size_no * .5))
+        top = int(num_points*(.5 + size_no * .5))
+        lft = int(num_points*(.5 - size_no * .5))
+        rgt = int(num_points*(.5 + size_no * .5))
+        if(bot < 0) : 
+            bot = 0
+        if(top > 256) : 
+            top = 256
+        if(lft < 0) : 
+            lft = 0
+        if(rgt > 256) : 
+            rgt = 256
+        u[bot:top, lft:rgt] += 0.1
+        v[bot:top, lft:rgt] += 0.5
+        u = np.roll(u, (int((x_no - .5) * num_points), int((y_no - .5) * num_points)), axis=(0, 1))
+        v = np.roll(v, (int((x_no - .5) * num_points), int((y_no - .5) * num_points)), axis=(0, 1))
+        return u, v
+
+    def three() :
+        u = np.ones((num_points, num_points))
+        v = np.zeros((num_points, num_points))
+        return u, v
+
+    def four() :
+        u = np.ones((num_points, num_points))
+        v = np.zeros((num_points, num_points))  
+        x = np.linspace(-1, 1, num_points)
+        y = np.linspace(-1, 1, num_points)
+        X, Y = np.meshgrid(x, y)
+        dR = np.exp(-36*np.power((np.power(X, shape_no*2) + np.power(Y, shape_no*2))/np.power(size_no, shape_no*2), sharpness))
+        u += .1 * dR
+        v += .5 * dR
+        u = np.roll(u, (int((x_no - .5) * num_points), int((y_no - .5) * num_points)), axis=(0, 1))
+        v = np.roll(v, (int((x_no - .5) * num_points), int((y_no - .5) * num_points)), axis=(0, 1))
+        return u, v
+
+    switcher = {
+        1 : one(),
+        2 : two(),
+        3 : three(),
+        4 : four()
+    }
+
+    return switcher.get(ic_no)
 
 def jiggle(v,num_points):
     bot = int(num_points*0.4)
