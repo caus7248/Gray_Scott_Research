@@ -1,7 +1,7 @@
 % This is a cool stamp, other than our circular-square shape
 
 % _________________inline functions for the construction_________________ %
-rr   = @(theta, phi, a, k)  (1+a*cos(k*theta-phi))/(1+a);
+rr   = @(theta, phi, a, k)  (1+a*cos(k*theta))/(1+a);
 UU   = @(R,b,c) exp(-36*(R/b).^c);
 
 % ___Some test parameters. See more configurations commented out below___ %
@@ -19,11 +19,11 @@ T   = acos(X./R).*sign(Y+eps);  %this "+eps" fixes the angle when x<0, y=0
 
 % _________________Demo, varying the reference angle phi_________________ %
 for n=1:100
-    phi = (n/100)*2*k*pi;   % spin the shape one full revolution
+    phi = (n/100)*2*pi;   % spin the shape one full revolution
     if a == 0
         Rd   = R.*(cos(T-phi).^d+sin(T-phi).^d).^(1/d);     % phi rotates!
     else
-        r = rr(T,phi,a,k);      % sets the shape of the stamp
+        r = rr(T-phi,a,k);      % sets the shape of the stamp
         Rd   = R./r;
     end
     U = UU(Rd,b,c);  %and that's it. Now, let's have a look
