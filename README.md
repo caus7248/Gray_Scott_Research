@@ -83,3 +83,35 @@ with reproducible bounded noise in the patch.
 
 Tests cover spatial and temporal convergence, periodic conservation, equilibrium,
 component substitution, snapshot ownership, nontrivial evolution and invalid input.
+
+## Fourier and adaptive RK
+
+```bash
+python -m gray_scott --spatial fourier --stepper rk45 --steps 1000 --dt 0.5 --save-every 100 --rtol 1e-7 --atol 1e-10 --plot --output outputs/fourier
+```
+
+`PeriodicFourier` applies the exact Fourier multiplier `-(kx²+ky²)` to the
+sampled field using FFTs, on odd or even rectangular grids. It caches the
+multiplier for the current grid. Reaction products are evaluated on the base
+grid: **no dealiasing is applied**. This is Fourier collocation, not an alias-free
+Galerkin discretization. Check spatial resolution for nonlinear experiments;
+the discontinuous initial patch is also not spectrally smooth.
+
+`simulate_adaptive(model, state, output_times=[0, ...], rtol=..., atol=...,
+max_step=...)` uses SciPy's Dormand–Prince RK45, with embedded local error
+control, internal step rejection, and dense interpolation at requested times.
+It streams outputs without storing the trajectory. Times must start at zero
+and increase strictly. Scalar tolerances apply across all concentrations; the
+error norm does not guarantee a pointwise or global error bound.
+
+With CLI RK45, `dt * steps` specifies the final time and `dt * save_every`
+specifies the output cadence; dt is **not** the adaptive internal time step.
+`--max-step` caps internal steps if desired. Fixed Euler and RK4 retain their
+original dt semantics. RK45 remains explicit and diffusion stability limited.
+Fourier and FD have different highest-frequency diffusion eigenvalues, and
+therefore different Euler diffusion bounds.
+
+The model now exposes `diffusion(t, state)` and `reaction(t, state)` separately;
+its combined RHS is their sum. These are extension points for future MOLᵀ
+work, not an implementation of MOLᵀ. MATLAB reference files will guide that
+implementation when available.

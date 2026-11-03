@@ -14,3 +14,4 @@ jobs:
       - run: python -m pip install -e '.[test]'
       - run: python -m pytest -q
       - run: python -m gray_scott --nx 16 --ny 12 --steps 10 --output outputs/smoke
+      - run: python -m gray_scott --nx 16 --ny 13 --steps 20 --save-every 7 --spatial fourier --stepper rk45 --output outputs/fourier

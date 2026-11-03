@@ -3,8 +3,9 @@ import argparse
 import json
 from pathlib import Path
 import numpy as np
+import scipy
 from dataclasses import asdict
-from . import Grid, Parameters, GrayScott, PeriodicFiniteDifference, ForwardEuler, RK4, initial_state, simulate
+from . import Grid, Parameters, GrayScott, PeriodicFiniteDifference, PeriodicFourier, simulate_adaptive, ForwardEuler, RK4, initial_state, simulate
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -20,26 +21,43 @@ def main():
     parser.add_argument('--du', type=float, default=0.2)
     parser.add_argument('--dv', type=float, default=0.1)
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--stepper', choices=['euler', 'rk4'], default='euler')
+    parser.add_argument('--stepper', choices=['euler', 'rk4', 'rk45'], default='euler')
+    parser.add_argument('--spatial', choices=['fd', 'fourier'], default='fd')
+    parser.add_argument('--rtol', type=float, default=1e-6)
+    parser.add_argument('--atol', type=float, default=1e-9)
+    parser.add_argument('--max-step', type=float, default=np.inf)
     parser.add_argument('--output', type=Path, default=Path('outputs/run'))
     parser.add_argument('--plot', action='store_true', help='save final.png (requires matplotlib)')
     args = parser.parse_args()
     grid = Grid(args.nx, args.ny, args.lx, args.ly)
     parameters = Parameters(args.du, args.dv, args.feed, args.kill)
-    spatial = PeriodicFiniteDifference()
+    spatial = PeriodicFiniteDifference() if args.spatial == 'fd' else PeriodicFourier()
     if args.stepper == 'euler' and args.dt > spatial.diffusion_dt_limit(grid, max(args.du, args.dv)):
         parser.error('dt exceeds the forward-Euler diffusion bound; reduce dt')
     model = GrayScott(grid, spatial, parameters)
     stepper = ForwardEuler() if args.stepper == 'euler' else RK4()
-    snapshots = simulate(model, initial_state(grid, seed=args.seed), dt=args.dt,
-                         steps=args.steps, save_every=args.save_every, stepper=stepper)
+    if args.stepper == 'rk45':
+        if (args.steps < 0 or args.save_every < 1 or not np.isfinite(args.dt)
+                or args.dt <= 0):
+            parser.error('steps >= 0, save-every >= 1 and finite dt > 0 required')
+        indices = list(range(0, args.steps+1, args.save_every))
+        if indices[-1] != args.steps:
+            indices.append(args.steps)
+        snapshots = simulate_adaptive(model, initial_state(grid, seed=args.seed),
+            output_times=np.asarray(indices)*args.dt, rtol=args.rtol,
+            atol=args.atol, max_step=args.max_step)
+    else:
+        snapshots = simulate(model, initial_state(grid, seed=args.seed), dt=args.dt,
+                             steps=args.steps, save_every=args.save_every, stepper=stepper)
     # Validate the integration configuration before creating the output directory.
     first = next(snapshots)
     args.output.mkdir(parents=True, exist_ok=False)
     metadata = dict(grid=asdict(grid), parameters=asdict(parameters), dt=args.dt,
                     steps=args.steps, save_every=args.save_every, seed=args.seed,
-                    stepper=args.stepper, spatial='periodic-five-point-fd',
-                    numpy_version=np.__version__, initial_condition=dict(width=0.15, noise=0.02),
+                    stepper=args.stepper, spatial=args.spatial, rtol=args.rtol, atol=args.atol,
+                    max_step=None if np.isinf(args.max_step) else args.max_step,
+                    dealiasing='none',
+                    numpy_version=np.__version__, scipy_version=scipy.__version__, initial_condition=dict(width=0.15, noise=0.02),
                     status='running')
     metadata_path = args.output / 'metadata.json'
     metadata_path.write_text(json.dumps(metadata, indent=2)+'\n')

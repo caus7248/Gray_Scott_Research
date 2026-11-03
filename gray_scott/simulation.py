@@ -26,3 +26,47 @@ def simulate(model, state, *, dt=0.5, steps=1000, save_every=100, stepper=None):
             raise FloatingPointError(f'invalid state at step {n}; try a smaller dt')
         if n % save_every == 0 or n == steps:
             yield n*dt, state.copy()
+
+
+def simulate_adaptive(model, state, *, output_times, rtol=1e-6, atol=1e-9,
+                      max_step=np.inf):
+    """Stream RK45 dense output at specified times, independent of internal steps.
+
+    Times must start at zero and increase strictly. SciPy performs embedded
+    Dormand–Prince 5(4) error control and step rejection. This remains explicit.
+    """
+    from scipy.integrate import RK45
+    times = np.asarray(output_times, dtype=float)
+    if (times.ndim != 1 or len(times) == 0 or not np.isfinite(times).all()
+            or times[0] != 0 or np.any(np.diff(times) <= 0)):
+        raise ValueError('output_times must start at zero and increase strictly')
+    if not all(np.isfinite(x) and x > 0 for x in (rtol, atol)):
+        raise ValueError('rtol and atol must be finite positive scalars')
+    if np.isnan(max_step) or max_step <= 0:
+        raise ValueError('max_step must be positive')
+    state = np.array(state, dtype=float, copy=True)
+    shape = (2, *model.grid.shape)
+    if state.shape != shape or not np.isfinite(state).all():
+        raise ValueError('state must be finite with shape (2, ny, nx)')
+    yield 0.0, state.copy()
+    if len(times) == 1:
+        return
+    def rhs(t, flat):
+        result = model(t, flat.reshape(shape))
+        if not np.isfinite(result).all():
+            raise FloatingPointError('nonfinite RHS during adaptive integration')
+        return result.ravel()
+    solver = RK45(rhs, 0, state.ravel(), times[-1], rtol=rtol,
+                  atol=atol, max_step=max_step)
+    index = 1
+    while solver.status == 'running':
+        message = solver.step()
+        if solver.status == 'failed':
+            raise RuntimeError(f'RK45 failed: {message}')
+        interpolant = solver.dense_output()
+        while index < len(times) and times[index] <= solver.t:
+            result = interpolant(times[index]).reshape(shape)
+            if not np.isfinite(result).all():
+                raise FloatingPointError('nonfinite adaptive output')
+            yield float(times[index]), result.copy()
+            index += 1

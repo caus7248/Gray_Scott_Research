@@ -39,12 +39,20 @@ class GrayScott:
         self.grid, self.spatial = grid, spatial
         self.parameters = parameters if parameters is not None else Parameters()
 
-    def __call__(self, t, state):
+    def reaction(self, t, state):
+        """Pointwise reaction; spatial collocation products are not dealiased."""
         u, v = state
         p = self.parameters
-        reaction = u * v * v
-        return np.stack((p.du * self.spatial.laplacian(u, self.grid) - reaction + p.feed * (1-u),
-                         p.dv * self.spatial.laplacian(v, self.grid) + reaction - (p.feed+p.kill)*v))
+        r = u*v*v
+        return np.stack((-r+p.feed*(1-u), r-(p.feed+p.kill)*v))
+
+    def diffusion(self, t, state):
+        p = self.parameters
+        return np.stack((p.du*self.spatial.laplacian(state[0], self.grid),
+                         p.dv*self.spatial.laplacian(state[1], self.grid)))
+
+    def __call__(self, t, state):
+        return self.diffusion(t, state) + self.reaction(t, state)
 
 def initial_state(grid, seed=0, width=0.15, noise=0.02):
     """Centered patch, with optional reproducible perturbations inside it."""
